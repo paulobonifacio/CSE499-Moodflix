@@ -1,5 +1,7 @@
 # 🎬 MoodFlix
 
+“Your mood deserves the perfect movie.”
+
 MoodFlix is a web application that recommends movies based on your mood.  
 It uses **sentiment analysis** and **movie data APIs** to create a personalized and emotional movie discovery experience.
 
