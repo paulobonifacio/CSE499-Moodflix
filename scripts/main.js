@@ -25,12 +25,12 @@ function saveToWatchHistory(movie) {
   const history = getWatchHistory();
   const exists = history.some(item => item.id === movie.id);
   if (!exists) {
-      history.push({
-          id: movie.id,
-          title: movie.title,
-          poster_path: movie.poster_path
-      });
-      localStorage.setItem("watchHistory", JSON.stringify(history));
+    history.push({
+      id: movie.id,
+      title: movie.title,
+      poster_path: movie.poster_path
+    });
+    localStorage.setItem("watchHistory", JSON.stringify(history));
   }
 }
 
@@ -38,13 +38,13 @@ function toggleFavorite(movie) {
   const favorites = getFavorites();
   const index = favorites.findIndex(fav => fav.id === movie.id);
   if (index !== -1) {
-      favorites.splice(index, 1);
+    favorites.splice(index, 1);
   } else {
-      favorites.push({
-          id: movie.id,
-          title: movie.title,
-          poster_path: movie.poster_path
-      });
+    favorites.push({
+      id: movie.id,
+      title: movie.title,
+      poster_path: movie.poster_path
+    });
   }
   saveFavorites(favorites);
 }
@@ -52,31 +52,60 @@ function toggleFavorite(movie) {
 const moodButtons = document.querySelectorAll(".mood-buttons button");
 const recommendationContainer = document.getElementById("recommendationCards");
 
-const HF_API_URL = "https://router.huggingface.co/hf-inference/models/bhadresh-savani/distilbert-base-uncased-emotion";
-const HF_API_KEY = // real token only in local env, not in git
 
+// ===================================================================
+// 🔥 GET EMOTION FROM BACKEND (Render API)
+// ===================================================================
 async function getEmotionFromText(text) {
-  const response = await fetch(HF_API_URL, {
-      headers: {
-          Authorization: HF_API_KEY,
-          "Content-Type": "application/json",
-      },
+  try {
+    const response = await fetch("https://meuteste-vx51.onrender.com/emotion", {
       method: "POST",
-      body: JSON.stringify({ inputs: text }),
-  });
-  const result = await response.json();
-  const topEmotion = result[0][0].label;
-  console.log("Detected Emotion:", topEmotion);
-  return topEmotion;
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ text }),
+    });
+
+    const data = await response.json();
+
+    console.log("HF RAW →", data);
+
+    // ❗ Render + HF retornam:
+    // [ [ {label, score}, {label, score}, ... ] ]
+    if (!Array.isArray(data) || !Array.isArray(data[0])) {
+      console.error("⚠ Resposta inesperada do backend:", data);
+      return "joy"; // fallback seguro
+    }
+
+    const emotions = data[0];
+
+    const topEmotion = emotions.reduce((best, item) =>
+      item.score > best.score ? item : best
+    );
+
+    return topEmotion.label.toLowerCase();
+
+  } catch (err) {
+    console.error("❌ Erro no cliente:", err);
+    return "joy"; // fallback padrão
+  }
 }
 
+
+// ===================================================================
+// 🎭 MAP EMOTIONS → TMDB GENRES
+// ===================================================================
 const emotionToGenre = {
   joy: 35,
   sadness: 18,
   anger: 28,
   fear: 27,
   love: 10749,
-  surprise: 12
+  surprise: 12,
+  disgust: 27,
+  nervousness: 53,
+  disappointment: 18,
+  neutral: 18
 };
 
 const TMDB_API_KEY = "7980428403999719e2cdd03e43e9a631";
@@ -86,7 +115,8 @@ async function fetchRecommendations(genreId) {
   const url = `${TMDB_API_URL}?api_key=${TMDB_API_KEY}&with_genres=${genreId}&sort_by=popularity.desc`;
   const response = await fetch(url);
   const data = await response.json();
-  document.getElementById("resultsLabel").textContent = "Recommendations based on your mood:";
+  document.getElementById("resultsLabel").textContent =
+    "Recommendations based on your mood:";
   displayRecommendations(data.results.slice(0, 4));
 }
 
@@ -95,42 +125,45 @@ function displayRecommendations(movies) {
   const favorites = getFavorites();
 
   movies.forEach(movie => {
-      saveToWatchHistory(movie);
+    saveToWatchHistory(movie);
 
-      const card = document.createElement("div");
-      card.className = "movie-card";
+    const card = document.createElement("div");
+    card.className = "movie-card";
 
-      const isFavorited = favorites.some(fav => fav.id === movie.id);
+    const isFavorited = favorites.some(fav => fav.id === movie.id);
 
-      card.innerHTML = `
-          <span class="favorite-icon ${isFavorited ? "favorited" : ""}" data-id="${movie.id}">★</span>
-          <img src="https://image.tmdb.org/t/p/w200${movie.poster_path}" alt="${movie.title}" />
-          <p>${movie.title}</p>
-      `;
+    card.innerHTML = `
+      <span class="favorite-icon ${isFavorited ? "favorited" : ""}" data-id="${movie.id}">★</span>
+      <img src="https://image.tmdb.org/t/p/w200${movie.poster_path}" alt="${movie.title}" />
+      <p>${movie.title}</p>
+    `;
 
-      recommendationContainer.appendChild(card);
+    recommendationContainer.appendChild(card);
   });
 
   const favoriteIcons = document.querySelectorAll(".favorite-icon");
   favoriteIcons.forEach(icon => {
-      icon.addEventListener("click", () => {
-          const movieId = parseInt(icon.dataset.id);
-          const movie = movies.find(m => m.id === movieId);
-          toggleFavorite(movie);
-          icon.classList.toggle("favorited");
-      });
+    icon.addEventListener("click", () => {
+      const movieId = parseInt(icon.dataset.id);
+      const movie = movies.find(m => m.id === movieId);
+      toggleFavorite(movie);
+      icon.classList.toggle("favorited");
+    });
   });
 }
 
 moodButtons.forEach(btn => {
   btn.addEventListener("click", async () => {
-      const mood = btn.dataset.mood;
-      const moodSentence = moodMap[mood];
-      const emotion = await getEmotionFromText(moodSentence);
-      const genreId = emotionToGenre[emotion] || 35;
-      await fetchRecommendations(genreId);
-      saveMoodPreference(mood, emotion, genreId);
-      applyMoodTheme(emotion);
+    const mood = btn.dataset.mood;
+    const moodSentence = moodMap[mood];
+
+    const emotion = await getEmotionFromText(moodSentence);
+
+    const genreId = emotionToGenre[emotion] || 35;
+
+    await fetchRecommendations(genreId);
+    saveMoodPreference(mood, emotion, genreId);
+    applyMoodTheme(emotion);
   });
 });
 
@@ -154,11 +187,11 @@ searchInput.addEventListener("input", () => {
   const query = searchInput.value.trim();
 
   if (query.length > 2) {
-      searchTimeout = setTimeout(() => {
-          searchMovies(query);
-      }, 500);
+    searchTimeout = setTimeout(() => {
+      searchMovies(query);
+    }, 500);
   } else {
-      recommendationContainer.innerHTML = "";
+    recommendationContainer.innerHTML = "";
   }
 });
 
@@ -167,12 +200,14 @@ async function searchMovies(query) {
   const response = await fetch(url);
   const data = await response.json();
   const filtered = data.results.filter(item => item.poster_path);
-  document.getElementById("resultsLabel").textContent = `Search Results for "${query}"`;
+  document.getElementById("resultsLabel").textContent =
+    `Search Results for "${query}"`;
   displayRecommendations(filtered.slice(0, 6));
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
-  const response = await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_API_KEY}`);
+  const response =
+    await fetch(`https://api.themoviedb.org/3/movie/popular?api_key=${TMDB_API_KEY}`);
   const data = await response.json();
   document.getElementById("resultsLabel").textContent = "Trending Now";
   displayRecommendations(data.results.slice(0, 6));
