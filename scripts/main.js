@@ -69,7 +69,7 @@ const recommendationContainer = document.getElementById("recommendationCards");
 // ========================================================
 async function getEmotionFromText(text) {
   try {
-    const response = await fetch("https://meuteste-vx51.onrender.com/emotion", {
+    const response = await fetch("https://cse499-moodflix.onrender.com/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
