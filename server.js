@@ -17,7 +17,24 @@ const HF_MODEL_URL =
   "https://router.huggingface.co/hf-inference/models/j-hartmann/emotion-english-distilroberta-base";
 
 // ===============================
-//       ROTA DE EMOÇÃO
+//       ROTA RAIZ (Render GET /)
+// ===============================
+app.get("/", (req, res) => {
+  res.send("MoodFlix API is running");
+});
+
+// ===============================
+//       HEALTH CHECK
+// ===============================
+app.get("/health", (req, res) => {
+  res.json({
+    status: "ok",
+    message: "MoodFlix server is running"
+  });
+});
+
+// ===============================
+//       Emotions
 // ===============================
 app.post("/emotion", async (req, res) => {
   try {
@@ -48,7 +65,7 @@ app.post("/emotion", async (req, res) => {
 });
 
 // ===============================
-//       PORTA PARA RENDER
+//      Render
 // ===============================
 const PORT = process.env.PORT || 3000;
 
